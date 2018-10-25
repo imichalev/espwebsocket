@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "stdio.h": "c",
+        "esp_spi_flash.h": "c",
+        "base64.h": "c",
+        "tft.h": "c",
+        "tftspi.h": "c",
+        "spi_master_lobo.h": "c",
+        "ws_client.h": "c",
+        "ds3231.h": "c",
+        "stdlib.h": "c"
+    },
+    "C_Cpp.intelliSenseEngineFallback": "Disabled",
+    //"terminal.integrated.shell.windows":"C:\\WINDOWS\\System32\\cmd.exe"
+}
