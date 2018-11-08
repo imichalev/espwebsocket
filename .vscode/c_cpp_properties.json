@@ -1,7 +1,9 @@
 {
+    "env": {
+        "IDF_PATH": "F:/msys32/home/imihalev/esp-idf"
+    },
     "configurations": [
-        { 
-            "env" : {"IDF_PATH":"F:/msys32/home/imihalev/esp-idf"},
+        {
             "name": "ESP32-Win",
             "includePath": [
                 "${workspaceRoot}",
@@ -126,12 +128,13 @@
                 "${env:IDF_PATH}/components/wpa_supplicant/include/wpa2/tls",
                 "${env:IDF_PATH}/components/wpa_supplicant/include/wpa2/utils",
                 "${env:IDF_PATH}/components/xtensa-debug-module/include",
-                "C:/Program Files/Espressif/ESP-IDF Tools/toolchain/lib/gcc/xtensa-esp32-elf/5.2.0/include",
-                "D:/msys32/home/admin/esp-idf/components/mbedtls/mbedtls/include",
-                "D:/msys32/home/admin/esp-idf/components/ESP32_TFT_library/components/tft",
-                "D:/msys32/home/admin/esp-idf/ESP32_TFT_library/components/tft",
-                "D:/msys32/home/admin/esp-idf/ESP32_TFT_library/components/spidriver",
-                "D:/msys32/home/admin/esp-idf/components/ESP32_TFT_library/components/spidriver"
+                "${env:IDF_PATH}/components/mbedtls/mbedtls/include",
+                "${env:IDF_PATH}/components/ESP32_TFT_library/components/tft",
+                "${env:IDF_PATH}/ESP32_TFT_library/components/tft",
+                "${env:IDF_PATH}/ESP32_TFT_library/components/spidriver",
+                "${env:IDF_PATH}/components/ESP32_TFT_library/components/spidriver",
+                "F:/msys32/opt/xtensa-esp32-elf/lib/gcc/xtensa-esp32-elf/5.2.0/include"
+        
             ],
             "intelliSenseMode": "clang-x64",
             "browse": {
@@ -260,7 +263,7 @@
                     "${env:IDF_PATH}/components/xtensa-debug-module/include",
                     "${env:IDF_PATH}/components/ESP32_TFT_library/components/tft",
                     "${env:IDF_PATH}/components/ESP32_TFT_library/components/spidriver",
-                    "C:/Program Files/Espressif/ESP-IDF Tools/toolchain/lib/gcc/xtensa-esp32-elf/5.2.0/include"
+                    "F:/msys32/opt/xtensa-esp32-elf/lib/gcc/xtensa-esp32-elf/5.2.0/include"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": "${workspaceRoot}/.vscode/browse.vc.db"

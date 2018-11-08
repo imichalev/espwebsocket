@@ -22,10 +22,9 @@
 #include "esp_err.h"
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
-#include "esp_err.h"
 #include "esp_log.h"
 #include <sys/time.h>
-#include "time.h"
+//#include "time.h"
 #include "freertos/semphr.h"
 #include "esp_heap_trace.h"
 //#include "freertos/portable.h"
@@ -105,7 +104,7 @@ err_t recv_task(struct netconn *conn, char* buffer,uint16_t buflen) {
 	             //inbuf=netbuf_new();
 	//uint16_t buflen=len;
 	struct netbuf *inbuf; //Memory leak
-                  //netconn_set_recvtimeout(conn,1000);
+                  //netconn_set_recvtimeout(conn,1000)				
 	err=netconn_recv(conn, &inbuf);  //Here stop and Waiting for result from received....
 	if (err == ERR_OK) {
 	             //netbuf_data(inbuf,(void**)&buffer, &buflen); don't use this !!!!!!!!
@@ -180,6 +179,27 @@ static err_t esp_ws_set_config(esp_ws_client_handle_t client, const esp_ws_clien
 
 	return err;
 }
+
+static void make_send_buffer(uint8_t *pSendBuffer, WS_frame_header_t hdr, uint32_t key, char *p_buf, uint8_t len)
+{
+	uint8_t *pSource = (uint8_t *)&hdr;
+	for (int8_t i = 0; i < sizeof(WS_frame_header_t); i++)
+	{
+		*pSendBuffer++ = *pSource++;
+	}
+	pSource = (uint8_t *)&key;
+	for (int8_t i = 0; i < sizeof(uint32_t); i++)
+	{
+		*pSendBuffer++ = *pSource++;
+	}
+	pSource = (uint8_t *)p_buf;
+	for (int8_t i = 0; i < len; i++)
+	{
+		*pSendBuffer++ = *pSource++;
+	}
+}
+
+
 
 static uint32_t random_key()
 {
@@ -422,6 +442,8 @@ static err_t esp_ws_connect(esp_ws_client_handle_t client) {
 //}
 
 
+
+
  static err_t ws_read(esp_ws_client_handle_t client){
 	 //ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 	err_t err=ERR_OK;
@@ -472,25 +494,26 @@ static err_t esp_ws_connect(esp_ws_client_handle_t client) {
       	     			 hdr.opcode=WS_OP_PON;
       	     			 uint32_t key= random_key();
 						 uint8_t  data[sizeof(hdr)+sizeof(key)+len];
-						 uint8_t* pTarget=(uint8_t*)&data;
-
-						 uint8_t* pSource=(uint8_t*)&hdr;
-						  for(int8_t i=0;i<sizeof(hdr);i++)
-						  {
-                             *pTarget++ =*pSource++; 
-						  }	
-						 pSource=(uint8_t*)&key;
-						   for(int8_t i=0;i<sizeof(key);i++)
-						  {
-                             *pTarget++ =*pSource++; 
-						  }	
-						  //Masket Message
-						  code_data(p_buf,len,key);
-						  pSource=(uint8_t*)p_buf;
-						   for(int8_t i=0;i<len;i++)
-						  {
-                             *pTarget++ =*pSource++; 
-						  }	
+						 //uint8_t* pTarget=(uint8_t*)&data;
+						 code_data(p_buf,len,key);
+                         make_send_buffer((uint8_t*)&data,hdr,key,p_buf,len);
+						//  uint8_t* pSource=(uint8_t*)&hdr;
+						//   for(int8_t i=0;i<sizeof(hdr);i++)
+						//   {
+                        //      *pTarget++ =*pSource++; 
+						//   }	
+						//  pSource=(uint8_t*)&key;
+						//    for(int8_t i=0;i<sizeof(key);i++)
+						//   {
+                        //      *pTarget++ =*pSource++; 
+						//   }	
+						//   //Masket Message
+						//   code_data(p_buf,len,key);
+						//   pSource=(uint8_t*)p_buf;
+						//    for(int8_t i=0;i<len;i++)
+						//   {
+                        //      *pTarget++ =*pSource++; 
+						//   }	
                            //printf("Pong respond data:")
       	     			 err = netconn_write(conn, &data, sizeof(hdr)+sizeof(key)+len, NETCONN_NOCOPY);
       	     			//  err = netconn_write(conn, &key, sizeof(key), NETCONN_NOCOPY);
@@ -557,9 +580,14 @@ esp_err_t ws_write(esp_ws_client_handle_t client,char *data,int len){
         }else{
         	uint32_t key=random_key();
         	code_data(data,len,key);
-        	err = netconn_write(conn, &hdr, sizeof(WS_frame_header_t),NETCONN_NOCOPY);
-        	err = netconn_write(conn, &key, sizeof(key),NETCONN_NOCOPY);
-        	err = netconn_write(conn, data, len,NETCONN_NOCOPY);
+            uint8_t bufferLen=sizeof(WS_frame_header_t)+sizeof(uint32_t)+len;
+		    uint8_t sendBuffer[bufferLen];
+		    make_send_buffer((uint8_t*)&sendBuffer,hdr,key,data,len);
+	        err = netconn_write(conn, &sendBuffer, bufferLen, NETCONN_NOCOPY);
+
+        	// err = netconn_write(conn, &hdr, sizeof(WS_frame_header_t),NETCONN_NOCOPY);
+        	// err = netconn_write(conn, &key, sizeof(key),NETCONN_NOCOPY);
+        	// err = netconn_write(conn, data, len,NETCONN_NOCOPY);
         }
 
 		systemtime();
@@ -572,7 +600,8 @@ esp_err_t ws_write(esp_ws_client_handle_t client,char *data,int len){
 	return err;
 }
 
-esp_err_t ws_client_ping(esp_ws_client_handle_t client){
+esp_err_t ws_client_ping(esp_ws_client_handle_t client)
+{
 	 err_t  err=ESP_OK;
 	 systemtime();
 	 ESP_LOGI(TAG, "ws_client_ping..");
@@ -582,27 +611,33 @@ esp_err_t ws_client_ping(esp_ws_client_handle_t client){
 			 systemtime();
 			 ESP_LOGE(TAG, "ws_write conn is null");
 			 goto END;
-		 }
+		 }else{
 
 	 //prepare header
 		 char text[]="hello";
-		 uint8_t len=strlen(text);
+		 uint8_t textLen=strlen(text);
 		 WS_frame_header_t hdr;
 		 hdr.FIN=0x1;
-		 hdr.payload_length=len;
+		 hdr.payload_length=textLen;
 		 hdr.mask=1;
 		 hdr.reserved=0;
 		 hdr.opcode=WS_OP_PIN;
 		 uint32_t key= random_key();
-		 code_data(text,len,key);
-		 err = netconn_write(conn, &hdr, sizeof(hdr), NETCONN_NOCOPY);
-		 err = netconn_write(conn, &key, sizeof(key), NETCONN_NOCOPY);
-		 err = netconn_write(conn, &text, len, NETCONN_NOCOPY);
+		 uint8_t bufferLen=sizeof(WS_frame_header_t)+sizeof(uint32_t)+textLen;
+		 uint8_t sendBuffer[bufferLen];
+		 code_data(text,textLen,key);
+	     make_send_buffer((uint8_t*)&sendBuffer,hdr,key,(char*)&text,textLen);
+	     err = netconn_write(conn, &sendBuffer, bufferLen, NETCONN_NOCOPY);
+
+		//  err = netconn_write(conn, &hdr, sizeof(hdr), NETCONN_NOCOPY);
+		//  err = netconn_write(conn, &key, sizeof(key), NETCONN_NOCOPY);
+		//  err = netconn_write(conn, &text, len, NETCONN_NOCOPY);
+		 
+		 }
 
     END:
 		return err;
 }
-
 
 
 static void esp_ws_task_keepalive(void *arg) {

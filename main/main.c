@@ -8,7 +8,7 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include <sys/time.h>
-#include "time.h"
+//#include "time.h"
 #include "string.h"
 #include "si7021.h"
 #include "esp_heap_trace.h"
@@ -126,12 +126,13 @@ static void taskInfo(void){
 static void task_sensor() {
 	static double temperatureMax=0.0;
 	static double temperatureMin=30.0;
-	double temperature = 0L;
-	double humidity = 0L;
+	double temperature = -100L;
+	double humidity = -100L;
 	//char *charData;
 	//charData=(char*)calloc(20,sizeof(char));  //CORRUPT HEAP: multi_heap.c:308 detected at 0x3ffcb0f8
 
 	char charData[25];
+	//char charDataHumidity[15];
 	//bzero(charData,20);
 
 	bool si7021ok = 0;
@@ -146,7 +147,24 @@ static void task_sensor() {
 		if(temperatureMin>temperature){
 			temperatureMin=temperature;
 		}
-		sprintf(charData, "t:%6.2f", temperature);
+		//sprintf(charDataTemperature, "{\"t\":%6.2f}", temperature);
+		  //Send it if websocket connect
+		// if (wsclient != NULL)
+		// {
+		// 	if (wsclient->state == WS_STATE_CONNECTED)
+		// 	{
+		// 		if (si7021ok)
+		// 		{
+		// 			//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
+		// 			//printf("Try to send data via websocket...\n");
+		// 			//sprintf(charData, "{\"t\":%6.2f}", temp);
+		// 			ws_write(wsclient, charData, strlen(charData));
+		// 			//ws_write(wsclient, charHumidity, strlen(charHumidity));
+		// 			//ESP_ERROR_CHECK(heap_trace_stop());
+		// 			//heap_trace_dump();
+		// 		}
+		// 	}
+		// }
 		sprintf(tftDisplay, "Temperature:%6.2f",temperature);
 		_fg = TFT_GREEN;
 		 if(temperature>MAX_TEMPERATURE){
@@ -165,7 +183,7 @@ static void task_sensor() {
 	//printf("1.charData:%s and charDataLen:%d\n",charData,strlen(charData));
 	si7021ok = 0;
 	if (readHumidity(&humidity) == ESP_OK) {
-		sprintf(charData, "%s:h:%6.2f", charData, humidity);
+		//sprintf(charDataHumidity, "{\"h\":%6.2f}",humidity);
 		si7021ok = 1;
 		sprintf(tftDisplay, "Humidity:%6.2f", humidity);
 		_fg = TFT_ORANGE;
@@ -178,8 +196,12 @@ static void task_sensor() {
 	if (wsclient != NULL) {
 		if (wsclient->state == WS_STATE_CONNECTED) {
 			if (si7021ok) {
+				 sprintf(charData, "{\"t\":%6.2f,", temperature);	
+			     sprintf(charData, "%s\"h\":%6.2f}",charData,humidity);	  
+				  			
 				//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 				//printf("Try to send data via websocket...\n");
+				//sprintf(charData, "{\"t\":%6.2f}", temp);		
 				ws_write(wsclient, charData, strlen(charData));
 				//ws_write(wsclient, charHumidity, strlen(charHumidity));
 				//ESP_ERROR_CHECK(heap_trace_stop());
@@ -247,8 +269,9 @@ static void task_sensor_max_6675(){
 				
 					//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 					//printf("Try to send data via websocket...\n");
-					char charData[10];
-					sprintf(charData, "t:%6.2f", temp);
+					char charData[11];
+					//Make JSON FORMAT for data !!! in server is good to parse data :)....
+					sprintf(charData, "{\"t\":%6.2f}", temp);				
 					ws_write(wsclient, charData, strlen(charData));
 					//ws_write(wsclient, charHumidity, strlen(charHumidity));
 					//ESP_ERROR_CHECK(heap_trace_stop());
@@ -381,8 +404,8 @@ static void ws_init() {
 
 	if (wsclient == NULL) {   //Only first time config or is wsclient was destroyed
 		const esp_ws_client_config_t ws_client_cfg = {
-			    .serverIP="192.168.1.205",
-				//.serverIP ="10.240.63.218",  //211
+			    //.serverIP="192.168.1.205",
+				.serverIP ="10.240.63.218",  //211
 				.serverPort = 999,           //8080
 				.localPort = (rand()& 0x7FFF) + 10000,
 				.reconnect = 1,
@@ -482,7 +505,18 @@ void init_tft() {
 
 	// ==== Set display type =====
 
+      /**
+	  * for DISP_TYPE_ILI9341
+	  */
 	 //tft_disp_type = DISP_TYPE_ILI9341; //comment for M5 and set display type in tftspi.h <#define  CONFIG_EXAMPLE_DISPLAY_TYPE 3>
+
+
+
+
+	 /**
+	  * for M5 Display
+	  */
+	 //#define  CONFIG_EXAMPLE_DISPLAY_TYPE 3  
 	_width = DEFAULT_TFT_DISPLAY_WIDTH;
 	_height = DEFAULT_TFT_DISPLAY_HEIGHT;
 	// ==== Set maximum spi clock for display read    ====
@@ -589,12 +623,12 @@ void app_main(void)
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
     wifi_config_t sta_config = {
         .sta = {
-           .ssid ="Michalev",
-		   .password="mich@l40",
+          //.ssid ="Michalev",
+		  // .password="mich@l40",
 
 
-            //.ssid = "MikroTik-CEDA81",
-            //.password = "zaq12wsx!",
+            .ssid = "MikroTik-CEDA81",
+            .password = "zaq12wsx!",
             .bssid_set = false
 
         }
@@ -608,7 +642,9 @@ void app_main(void)
     gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
     int level = 1;
 	time_t now;
+	static time_t taskTime;
 	time(&now);
+	taskTime=now;
 	struct tm timeinfo;
 	localtime_r(&now, &timeinfo);
 	char datetime[30];
@@ -636,10 +672,13 @@ void app_main(void)
 							timeinfo.tm_min, timeinfo.tm_sec,xPortGetFreeHeapSize());
 		_fg = TFT_CYAN;
 		TFT_print(datetime,CENTER,TFT_getfontheight()+2);
-		if (timeinfo.tm_sec % 10 == 0) {
+        
+		if (now-taskTime > 60 ) {    // 60 - one minute timeinfo.tm_sec % 50 == 0
+			time(&taskTime);
+			
 			//taskInfo();
 			//printf("%s", datetime);//system_get_free_heap_size());
-            // task_sensor();
+               //task_sensor();
 			   task_sensor_max_6675();
 			 //free();
 			  //time(&now);
