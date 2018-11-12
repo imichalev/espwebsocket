@@ -613,7 +613,7 @@ void init_tft() {
 
 void app_main(void)
 {
-    nvs_flash_init();
+    //nvs_flash_init();
     tcpip_adapter_init();
     ESP_ERROR_CHECK(heap_trace_init_standalone(trace_record,NUM_RECORDS));
     ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
